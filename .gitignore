@@ -1,3 +1,5 @@
 *.gif
 *.swp
 .DS_Store
+fetchall/alexa.zip
+fetchall/top-1m.csv
