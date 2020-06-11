@@ -11,6 +11,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"sync"
 )
 
@@ -24,7 +25,20 @@ var palette = []color.Color{color.Black, red, green, blue}
 
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		lissajous(w)
+		if err := r.ParseForm(); err != nil {
+			log.Print(err)
+		}
+		var cycles float64 = 5
+		if val, ok := r.Form["cycles"]; ok {
+			if cyclesF, err := strconv.ParseFloat(val[0], 64); err == nil {
+				cycles = cyclesF
+				log.Printf("Setting cycles to %f\n", cycles)
+			} else {
+				log.Printf("Failed to convert %s to float64\n", val)
+			}
+		}
+
+		lissajous(w, cycles)
 	})
 	http.HandleFunc("/count", counter)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
@@ -38,12 +52,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(w, "Host = %q\n", r.Host)
 	fmt.Fprintf(w, "RemoteAddr = %q\n", r.RemoteAddr)
-	if err := r.ParseForm(); err != nil {
-		log.Print(err)
-	}
-	for k, v := range r.Form {
-		fmt.Fprintf(w, "Form[%q] = %q\n", k, v)
-	}
 	mu.Lock()
 	count++
 	mu.Unlock()
@@ -58,9 +66,8 @@ func counter(w http.ResponseWriter, r *http.Request) {
 	mu.Unlock()
 }
 
-func lissajous(out io.Writer) {
+func lissajous(out io.Writer, cycles float64) {
 	const (
-		cycles  = 5
 		res     = 0.001
 		size    = 100
 		nframes = 64
