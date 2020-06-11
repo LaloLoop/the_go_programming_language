@@ -2,9 +2,9 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -34,7 +34,19 @@ func fetch(url string, ch chan<- string) {
 		return
 	}
 
-	nbytes, err := io.Copy(ioutil.Discard, resp.Body)
+	host := after(url, "https://")
+
+	fileName := fmt.Sprintf("/tmp/%s-%d", host, start)
+	f, err := os.Create(fileName)
+	if err != nil {
+		ch <- fmt.Sprint(err)
+		return
+	}
+	defer f.Close()
+
+	w := bufio.NewWriter(f)
+
+	nbytes, err := io.Copy(w, resp.Body)
 	resp.Body.Close() // don't leak resources
 	if err != nil {
 		ch <- fmt.Sprintf("while reading %s: %v", url, err)
@@ -42,4 +54,16 @@ func fetch(url string, ch chan<- string) {
 	}
 	secs := time.Since(start).Seconds()
 	ch <- fmt.Sprintf("%.2fs %7d %s", secs, nbytes, url)
+}
+
+func after(value string, a string) string {
+	pos := strings.LastIndex(value, a)
+	if pos == -1 {
+		return ""
+	}
+	adjustedPos := pos + len(a)
+	if adjustedPos >= len(value) {
+		return ""
+	}
+	return value[adjustedPos:len(value)]
 }
